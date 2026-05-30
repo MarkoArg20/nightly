@@ -37,7 +37,21 @@ export default function App() {
 
       console.log("3. registering service worker...");
       const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-      console.log("4. service worker registered:", registration);
+      await navigator.serviceWorker.ready;
+      console.log("4. service worker ready!");
+
+      registration.active.postMessage({
+        type: "FIREBASE_CONFIG",
+        config: {
+          apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+          authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+          projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+          storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+          appId: import.meta.env.VITE_FIREBASE_APP_ID,
+          databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+        },
+      });
 
       console.log("5. getting FCM token...");
       const token = await getToken(messaging, {
@@ -71,17 +85,13 @@ export default function App() {
 
     if (otherTokens.length === 0) return;
 
-    await fetch("https://fcm.googleapis.com/fcm/send", {
+    const response = await fetch("/api/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        registration_ids: otherTokens,
-        notification: {
-          title: isAsleep ? "🌙 Goodnight!" : "👋 Good morning!",
-          body: isAsleep ? `${name} went to sleep` : `${name} woke up`,
-        },
-      }),
+      body: JSON.stringify({ tokens: otherTokens, name, isAsleep }),
     });
+    const data = await response.json();
+    console.log("notify response:", data);
   }
 
   function handleSetup() {
@@ -168,7 +178,7 @@ const styles = {
   input: { padding: "12px 16px", fontSize: 16, borderRadius: 10, border: "1px solid #ddd", outline: "none" },
   joinButton: { padding: "14px", fontSize: 16, borderRadius: 10, background: "#1a1a2e", color: "white", border: "none", cursor: "pointer" },
   sleepButton: { fontSize: 80, background: "none", border: "none", cursor: "pointer" },
-  notifButton: { fontSize: 12, color: "#888", background: "none", border: "1px solid #ddd", borderRadius: 8, padding: "6px 12px", cursor: "pointer", marginTop: 8, display: "block", margin: "8px auto" },
+  notifButton: { fontSize: 12, color: "#888", background: "none", border: "1px solid #ddd", borderRadius: 8, padding: "6px 12px", cursor: "pointer", margin: "8px auto", display: "block" },
   hint: { color: "#888", marginTop: 8 },
   memberList: { marginTop: 48, textAlign: "left" },
   memberRow: { display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #eee" },
