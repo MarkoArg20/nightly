@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
-import { db } from "./firebase";
+import { db, messaging } from "./firebase";
 import { ref, set, onValue } from "firebase/database";
+import { getToken, onMessage } from "firebase/messaging";
+
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 export default function App() {
   const [name, setName] = useState(localStorage.getItem("nighty_name") || "");
   const [groupCode, setGroupCode] = useState(localStorage.getItem("nighty_group") || "");
   const [setupDone, setSetupDone] = useState(!!(localStorage.getItem("nighty_name") && localStorage.getItem("nighty_group")));
   const [members, setMembers] = useState({});
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     if (!setupDone) return;
@@ -16,29 +20,75 @@ export default function App() {
     });
   }, [setupDone, groupCode]);
 
+  useEffect(() => {
+    if (!setupDone) return;
+    onMessage(messaging, (payload) => {
+      setNotification(payload.notification);
+      setTimeout(() => setNotification(null), 4000);
+    });
+  }, [setupDone]);
+
+  async function requestNotificationPermission() {
+    try {
+      console.log("1. requesting permission...");
+      const permission = await Notification.requestPermission();
+      console.log("2. permission result:", permission);
+      if (permission !== "granted") return;
+
+      console.log("3. registering service worker...");
+      const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+      console.log("4. service worker registered:", registration);
+
+      console.log("5. getting FCM token...");
+      const token = await getToken(messaging, {
+        vapidKey: VAPID_KEY,
+        serviceWorkerRegistration: registration,
+      });
+
+      console.log("6. token:", token);
+
+      if (token) {
+        const userId = name.toLowerCase().replace(/\s+/g, "_");
+        set(ref(db, `groups/${groupCode}/members/${userId}/fcmToken`), token);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+    }
+  }
+
+  async function updateSleepStatus(isAsleep) {
+    const userId = name.toLowerCase().replace(/\s+/g, "_");
+    await set(ref(db, `groups/${groupCode}/members/${userId}`), {
+      name,
+      isAsleep,
+      lastSleepAt: Date.now(),
+      fcmToken: members[userId]?.fcmToken || null,
+    });
+
+    const otherTokens = Object.values(members)
+      .filter((m) => m.name !== name && m.fcmToken)
+      .map((m) => m.fcmToken);
+
+    if (otherTokens.length === 0) return;
+
+    await fetch("https://fcm.googleapis.com/fcm/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        registration_ids: otherTokens,
+        notification: {
+          title: isAsleep ? "🌙 Goodnight!" : "👋 Good morning!",
+          body: isAsleep ? `${name} went to sleep` : `${name} woke up`,
+        },
+      }),
+    });
+  }
+
   function handleSetup() {
     if (!name.trim() || !groupCode.trim()) return;
     localStorage.setItem("nighty_name", name.trim());
     localStorage.setItem("nighty_group", groupCode.trim());
     setSetupDone(true);
-  }
-
-  function goToSleep() {
-    const userId = name.toLowerCase().replace(/\s+/g, "_");
-    set(ref(db, `groups/${groupCode}/members/${userId}`), {
-      name,
-      isAsleep: true,
-      lastSleepAt: Date.now(),
-    });
-  }
-
-  function wakeUp() {
-    const userId = name.toLowerCase().replace(/\s+/g, "_");
-    set(ref(db, `groups/${groupCode}/members/${userId}`), {
-      name,
-      isAsleep: false,
-      lastSleepAt: Date.now(),
-    });
   }
 
   const myUserId = name.toLowerCase().replace(/\s+/g, "_");
@@ -49,7 +99,6 @@ export default function App() {
       <div style={styles.container}>
         <h1 style={styles.title}>Nighty</h1>
         <p style={styles.subtitle}>Sleep together, apart.</p>
-
         <div style={styles.form}>
           <input
             style={styles.input}
@@ -73,14 +122,26 @@ export default function App() {
 
   return (
     <div style={styles.container}>
+      {notification && (
+        <div style={styles.toast}>
+          <strong>{notification.title}</strong>
+          <p style={{ margin: 0 }}>{notification.body}</p>
+        </div>
+      )}
+
       <h1 style={styles.title}>Nighty</h1>
 
       <button
         style={{ ...styles.sleepButton, opacity: iAmAsleep ? 0.4 : 1 }}
-        onClick={iAmAsleep ? wakeUp : goToSleep}
+        onClick={() => updateSleepStatus(!iAmAsleep)}
       >
         🌙
       </button>
+
+      <button onClick={requestNotificationPermission} style={styles.notifButton}>
+        enable notifications
+      </button>
+
       <p style={styles.hint}>
         {iAmAsleep ? "you're asleep · tap to wake up" : "tap to say goodnight"}
       </p>
@@ -107,8 +168,10 @@ const styles = {
   input: { padding: "12px 16px", fontSize: 16, borderRadius: 10, border: "1px solid #ddd", outline: "none" },
   joinButton: { padding: "14px", fontSize: 16, borderRadius: 10, background: "#1a1a2e", color: "white", border: "none", cursor: "pointer" },
   sleepButton: { fontSize: 80, background: "none", border: "none", cursor: "pointer" },
+  notifButton: { fontSize: 12, color: "#888", background: "none", border: "1px solid #ddd", borderRadius: 8, padding: "6px 12px", cursor: "pointer", marginTop: 8, display: "block", margin: "8px auto" },
   hint: { color: "#888", marginTop: 8 },
   memberList: { marginTop: 48, textAlign: "left" },
   memberRow: { display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #eee" },
   groupLabel: { marginTop: 40, color: "#ccc", fontSize: 13 },
+  toast: { position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#1a1a2e", color: "white", padding: "12px 20px", borderRadius: 12, zIndex: 999, minWidth: 260 },
 };
