@@ -1,4 +1,4 @@
-const admin = require("firebase-admin");
+import admin from "firebase-admin";
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -10,7 +10,7 @@ if (!admin.apps.length) {
   });
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -36,4 +36,4 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+}
