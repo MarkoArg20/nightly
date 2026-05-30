@@ -89,7 +89,7 @@ console.log("all members:", members);
 
     if (otherTokens.length === 0) return;
 
-    const response = await fetch("/api/notify", {
+const response = await fetch("/api/notify.cjs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tokens: otherTokens, name, isAsleep }),
