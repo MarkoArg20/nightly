@@ -83,6 +83,10 @@ export default function App() {
       .filter((m) => m.name !== name && m.fcmToken)
       .map((m) => m.fcmToken);
 
+
+console.log("other tokens:", otherTokens);
+console.log("all members:", members);
+
     if (otherTokens.length === 0) return;
 
     const response = await fetch("/api/notify", {
