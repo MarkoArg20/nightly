@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/notify.cjs": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
+    
