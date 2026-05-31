@@ -10,6 +10,9 @@ if (!admin.apps.length) {
   });
 }
 
+console.log("Project ID from env:", process.env.FIREBASE_PROJECT_ID);
+console.log("Client email from env:", process.env.FIREBASE_CLIENT_EMAIL);
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
