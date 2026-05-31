@@ -31,9 +31,14 @@ export default async function handler(req, res) {
   };
 
   try {
-    const response = await admin.messaging().sendEachForMulticast(message);
-    res.status(200).json({ success: true, response });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const response = await admin.messaging().sendEachForMulticast(message);
+  console.log("FCM response:", JSON.stringify(response));
+  response.responses.forEach((r, i) => {
+    if (!r.success) console.log(`Token ${i} failed:`, r.error);
+  });
+  res.status(200).json({ success: true, response });
+} catch (err) {
+  console.error("FCM error:", err);
+  res.status(500).json({ error: err.message });
+}
 }
