@@ -2,6 +2,7 @@
   "name": "Nighty",
   "short_name": "Nighty",
   "description": "Tell your people you're going to sleep",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",
@@ -12,7 +13,19 @@
       "src": "/icons/manifest-icon-192.maskable.png",
       "sizes": "192x192",
       "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/manifest-icon-512.maskable.png",
