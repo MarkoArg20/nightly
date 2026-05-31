@@ -22,6 +22,9 @@ export default async function handler(req, res) {
     const client = await auth.getClient();
     const accessToken = await client.getAccessToken();
 
+    console.log("Access token prefix:", accessToken.token?.substring(0, 20));
+console.log("Client email used:", process.env.FIREBASE_CLIENT_EMAIL);
+
     const results = await Promise.all(tokens.map(token =>
       fetch(`https://fcm.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/messages:send`, {
         method: "POST",
